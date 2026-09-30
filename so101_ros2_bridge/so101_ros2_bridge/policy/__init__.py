@@ -27,6 +27,7 @@ from . import smolvla  # noqa: F401
 # from . import groot  # noqa: F401
 from .base import BasePolicy, PolicyConfig
 from .registry import make_policy, register_policy
+from . import openpi_remote
 
 __all__ = [
     'BasePolicy',

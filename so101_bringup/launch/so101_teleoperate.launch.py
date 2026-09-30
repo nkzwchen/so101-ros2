@@ -31,7 +31,11 @@ from launch.actions import (
 )
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import EqualsSubstitution, LaunchConfiguration
+from launch.substitutions import (
+    AndSubstitution,
+    EqualsSubstitution,
+    LaunchConfiguration,
+)
 
 
 def generate_launch_description():
@@ -66,6 +70,15 @@ def generate_launch_description():
     )
     args.append(model_arg)
 
+    # 相机开关：没有接 USB 相机时用 use_cameras:=false 跳过 camera.launch.py
+    # （usb_cam 在设备不存在时会报错并刷屏，但不影响机械臂本身）
+    use_cameras_arg = DeclareLaunchArgument(
+        'use_cameras',
+        default_value='true',
+        description='Launch usb_cam camera nodes or not (set false when no camera attached)',
+    )
+    args.append(use_cameras_arg)
+
     teleop_mode_arg = DeclareLaunchArgument(
         'teleop_mode',
         default_value='real',
@@ -85,6 +98,7 @@ def generate_launch_description():
     display = LaunchConfiguration('display')
     teleop_mode = LaunchConfiguration('teleop_mode')
     expert = LaunchConfiguration('expert')
+    use_cameras = LaunchConfiguration('use_cameras')
 
     # Debug: Log the mode
     mode_log = LogInfo(msg=['[TELEOP LAUNCH] Mode is set to: ', teleop_mode])
@@ -139,10 +153,15 @@ def generate_launch_description():
     )
     actions.append(delayed_follower_launch)
 
-    # Include cameras - ONLY in real mode
+    # Include cameras - ONLY in real mode AND use_cameras:=true
     camera_log = LogInfo(
         msg='[TELEOP LAUNCH] Launching cameras',
-        condition=IfCondition(EqualsSubstitution(teleop_mode, 'real')),
+        condition=IfCondition(
+            AndSubstitution(
+                EqualsSubstitution(teleop_mode, 'real'),
+                EqualsSubstitution(use_cameras, 'true'),
+            )
+        ),
     )
     actions.append(camera_log)
 
@@ -150,7 +169,12 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(bringup_pkg, 'launch', 'include', 'camera.launch.py')
         ),
-        condition=IfCondition(EqualsSubstitution(teleop_mode, 'real')),
+        condition=IfCondition(
+            AndSubstitution(
+                EqualsSubstitution(teleop_mode, 'real'),
+                EqualsSubstitution(use_cameras, 'true'),
+            )
+        ),
     )
     actions.append(cameras_launch)
 

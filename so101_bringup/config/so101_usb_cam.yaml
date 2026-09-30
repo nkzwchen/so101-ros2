@@ -1,28 +1,55 @@
-# Shared defaults for all usb_cam nodes
 /**:
   ros__parameters:
     framerate: 30.0
     io_method: "mmap"
     pixel_format: "mjpeg2rgb"
-    av_device_format: "YUV422P"
+    image_width: 424
+    image_height: 240
+
+# ⚠️ 修正记录（2026-09）——此前的 cam_main / cam_wrist 设备号是**反的**！
+#   原配置：cam_main -> /dev/video2，cam_wrist -> /dev/video0
+#   实测确认（抓帧看画面内容）：
+#     /dev/video0 → 全局视角（整条臂 + 桌面 + 红盒 + 木架），640x480
+#     /dev/video2 → 腕部视角（朝下看桌面，随臂移动），640x480
+#   这个错误同时存在于 lerobot/useful_script/record.sh 等脚本里
+#   （record.sh: cam_main=index2；而 eval_act.sh: cam_main=index0 —— 两者互相矛盾）。
+#
+#   本项目（HIL-SERL 真机 RL）的角色定义：
+#     cam_main  = 全局视角（第三视角），同时用于 reward classifier
+#     cam_wrist = 腕部视角
+#
+# ★ 用 /dev/v4l/by-id/ 的稳定符号链接而不是 /dev/videoN：
+#   videoN 编号会随 USB 插拔顺序变化（你的串口就遇到过这个问题）。
+#   by-id 带硬件序列号，稳定不变。实测只有 -video-index0 是可采集节点
+#   （-video-index1 是 UVC metadata 节点，打不开）。
+#
+# 分辨率说明：全局相机 640x480（classifier 需要看清橙子/盘子的相对位置），
+#             腕部相机 424x240（保持与原脚本一致）。
+
+/follower/cam_main:
+  ros__parameters:
+    video_device: "/dev/v4l/by-id/usb-JoyandAI_JYU2C-2083_JYU2C-2083-2603031-video-index0"
+    frame_id: "cam_main"
+    camera_name: "cam_main"
     image_width: 640
     image_height: 480
-    brightness: -1
-    contrast: -1
-    saturation: -1
-    sharpness: -1
-    gain: -1
-    auto_white_balance: true
-    white_balance: 4000
-    autoexposure: true
-    exposure: 100
-    autofocus: false
-    focus: -1
 
-# Node name should be fit the this format: <namespace>/<camera_name> from the so101_cameras.yaml
-/follower/cam_front:
+/follower/cam_wrist:
   ros__parameters:
-    video_device: "/dev/video0"
-    frame_id: "cam_front"
-    camera_name: "cam_front"
-    camera_info_url: "package://usb_cam/config/camera_info.yaml"
+    video_device: "/dev/v4l/by-id/usb-JoyandAI_JYU2C-2083_JYU2C-2083-2602030-video-index0"
+    frame_id: "cam_wrist"
+    camera_name: "cam_wrist"
+    # ★★ 2026-09-30 修正：424 → 640（不是画质问题，是 usb_cam 的**行距补齐 bug**）★★
+    #   usb_cam 0.8.1 用 pixel_format:=mjpeg2rgb 发布时，内部解码/转换的行距会被
+    #   对齐补齐：424*3 = 1272 → **1280**，而 ROS Image.step 仍声明 1272。
+    #   消费方按 step reshape ⇒ 图像**整体斜切**（每行错 8 字节 = 2.67px：
+    #   斜条纹 + 彩虹伪彩，拉普拉斯方差 4293；同一台设备直接 V4L2 抓只有 919）。
+    #   424*3=1272 不是 128 的倍数所以中招；cam_main 的 640*3=1920 = 15×128，没事。
+    #   640×360 与 424×240 **同为 16:9、视野完全一致**（已抓图逐像素对比），
+    #   1920 是 128 的倍数 ⇒ 补齐到 16/32/64/128 都不需要补，**必然正常**。
+    #   带宽比 640×480 少 25%。校验：python grab_stills.py --cam cam_wrist，
+    #   正常应在 ~500-900，出现 4000+ 就是又歪了。
+    #   ⚠️ 上面 /** 段的 424x240 是"全局默认值"，cam_main/cam_wrist 各自会覆盖它，
+    #      所以这里必须改 cam_wrist 这一段，改 /** 没用。
+    image_width: 640
+    image_height: 360

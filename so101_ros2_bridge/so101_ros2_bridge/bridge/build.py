@@ -26,8 +26,8 @@ from so101_ros2_bridge.utils.core import ensure_conda_site_packages_from_env
 
 ensure_conda_site_packages_from_env()
 
-from lerobot.robots.so101_follower import SO101Follower, SO101FollowerConfig
-from lerobot.teleoperators.so101_leader import SO101Leader, SO101LeaderConfig
+from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
+from lerobot.teleoperators.so_leader import SO101Leader, SO101LeaderConfig
 
 from so101_ros2_bridge.bridge.registry import register_robot
 

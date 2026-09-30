@@ -14,3 +14,7 @@ __pycache__/
 *checkpoints/
 
 bag/
+
+# 手工编辑前的备份（别入库）
+*.bak-*
+*.bak

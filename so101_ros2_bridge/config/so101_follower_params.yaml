@@ -1,9 +1,52 @@
-so101_follower_ros2_bridge:
+# SO101 follower bridge 参数
+#
+# ⚠️ 顶层键说明：
+#   本文件被 so101_ros2_bridge/launch/so101_ros2_bridge.launch.py 加载，该 launch 用
+#     namespace=<type>  name=so101_<type>_interface
+#   所以节点全限定名是 /follower/so101_follower_interface。
+#   原来的顶层键 so101_follower_ros2_bridge 与真实节点名不符 → 参数被静默忽略。
+#   这里同时给出两种写法保险。验证命令：
+#     ros2 param list /follower/so101_follower_interface
+#
+# 端口以 lerobot/useful_script/control.sh 为准：follower = /dev/ttyACM1
+# 标定文件：/home/nkzwchen/.cache/huggingface/calibration/robots/so_follower/so101_follower_main.json
+#
+# ⚠️ max_relative_target 踩坑记录（lerobot 0.5.1 的 API 陷阱）：
+#   lerobot/robots/utils.py:88 的 ensure_safe_goal_position 只接受 float 或 dict：
+#       if isinstance(max_relative_target, float): ...   # int 不匹配！
+#       elif isinstance(max_relative_target, dict): ...
+#       else: raise TypeError(max_relative_target)       # int(10) 落这里
+#   而 SOFollowerConfig 的类型标注写的是 `int | None`，参数读取时又没做 float 转换。
+#   所以这里**必须写浮点**（10.0），写 10 会每帧抛 TypeError: 10。
+#   若不想限速：改成 0.0（代码里 `0.0 或 <0 表示不限制`；注意**不是** null，
+#   本参数声明为 double，塞 null 会被 ROS2 拒绝）。
+#
+# ★ 2026-09 补充：限幅实现已从 lerobot 的 ensure_safe_goal_position 换成
+#   FollowerBridge 里的 _last_cmd 版本（与 LeaderBridge 一致）。原因：
+#     lerobot 那版会在**每个控制周期读一次全部舵机位置**（num_retry=5），
+#     相机占满 USB 总线时这次读会拖慢指令流；当时为诊断把它关成 0.0，
+#     结果从臂失去对「命令流不规整」的免疫 —— 归位脚本一旦爆发式补发，
+#     从臂就原样吃下并发抖，而 leader 桥有限幅所以很顺，
+#     表现为「主臂动得很好、从臂动得很差」。
+#   新的 _last_cmd 版以「上一条命令」为基准、**不读电机**：
+#     既保住安全网，又不付串口往返的代价。
+
+/follower/so101_follower_interface:
   ros__parameters:
     port: "/dev/ttyACM1"
-    id: "Tzili"
-    # calibration_dir: <abs path to your calibration dir>
+    id: "so101_follower_main"
+    calibration_dir: "/home/nkzwchen/.cache/huggingface/calibration/robots/so_follower"
     use_degrees: true
-    max_relative_target: 10 # default is none
+    max_relative_target: 10.0   # 必须是 float！单位=度；由 FollowerBridge._last_cmd 限幅（不读电机）
     disable_torque_on_disconnect: true
-    publish_rate: 50.0
+    publish_rate: 30.0
+
+/**:
+  ros__parameters:
+    port: "/dev/ttyACM1"
+    id: "so101_follower_main"
+    calibration_dir: "/home/nkzwchen/.cache/huggingface/calibration/robots/so_follower"
+    use_degrees: true
+    max_relative_target: 10.0   # 必须是 float！单位=度；由 FollowerBridge._last_cmd 限幅（不读电机）
+    disable_torque_on_disconnect: true
+    publish_rate: 30.0

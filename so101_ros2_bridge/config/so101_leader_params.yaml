@@ -1,9 +1,42 @@
-so101_leader_ros2_bridge:
+# SO101 leader bridge 参数
+#
+# ⚠️ 顶层键说明同 so101_follower_params.yaml：launch 把节点放到 /leader 命名空间，
+#   节点全限定名为 /leader/so101_leader_interface。原键 so101_leader_ros2_bridge 不匹配，
+#   参数会被静默忽略。这里同时给出两种写法。
+#
+# 端口以 lerobot/useful_script/control.sh 为准：leader = /dev/ttyACM0
+# 标定文件：/home/nkzwchen/.cache/huggingface/calibration/teleoperators/so_leader/so101_leader_main.json
+# id 与 control.sh --teleop.id 对齐（原为 "Gili"）。
+#
+# ── L1 新增能力（RL 训练用）──────────────────────────────────────────
+#   command_topic        : 订阅此话题来驱动 leader 电机（让 leader 跟随 follower）。
+#                          实际话题为 /leader/arm_command。
+#                          刻意不用 /leader/joint_commands —— 那个话题被 C++
+#                          的 So101HardwareBridge 占用，会形成反馈环。
+#   max_relative_target  : leader 单步命令的最大变化量（度），防止 follower 位置
+#                          突变时 leader 舵机猛冲。0 表示不限。
+#   service set_torque   : /leader/set_torque (std_srvs/SetBool)
+#                          True=力矩ON(跟随follower) / False=力矩OFF(人类自由推动)
+#
+# 注意：LeaderBridge.read_parameters() 未声明 disable_torque_on_disconnect，
+#       故此处不写该项，避免 ROS2 报 "parameter not declared"。
+
+/leader/so101_leader_interface:
   ros__parameters:
     port: "/dev/ttyACM0"
-    id: "Gili"
-    # calibration_dir: <abs path to your calibration dir>
+    id: "so101_leader_main"
+    calibration_dir: "/home/nkzwchen/.cache/huggingface/calibration/teleoperators/so_leader"
     use_degrees: true
-    # max_relative_target: 10 # default is none
-    disable_torque_on_disconnect: true
-    publish_rate: 50.0
+    publish_rate: 30.0
+    command_topic: "arm_command"
+    max_relative_target: 20.0
+
+/**:
+  ros__parameters:
+    port: "/dev/ttyACM0"
+    id: "so101_leader_main"
+    calibration_dir: "/home/nkzwchen/.cache/huggingface/calibration/teleoperators/so_leader"
+    use_degrees: true
+    publish_rate: 30.0
+    command_topic: "arm_command"
+    max_relative_target: 20.0

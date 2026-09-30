@@ -1,0 +1,12 @@
+server:
+  host: "127.0.0.1"
+  port: 8080
+
+observation:
+  base_image_key: "observation.images.cam_main"
+  wrist_image_key: "observation.images.cam_wrist"
+  state_key: "observation.state"
+
+lpf_filtering:
+  enable: true
+  alpha: 0.1

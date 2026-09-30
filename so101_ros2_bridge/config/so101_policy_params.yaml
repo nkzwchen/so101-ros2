@@ -10,7 +10,7 @@
     sync.slop: 0.1                  # ApproximateTimeSynchronizer slop [sec]
 
     # General policy parameters
-    policy_name: "smolvla"
+    policy_name: "openpi_remote"
     device: cuda:0
     checkpoint_path: "<your abs path to the ckpt dir>/pretrained_model"  # Default checkpoint path
-    task: "<your task description here>" # e.g "Pick the cube and place it in the bowl."
+    task: "pick up the orange" # e.g "Pick the cube and place it in the bowl."
