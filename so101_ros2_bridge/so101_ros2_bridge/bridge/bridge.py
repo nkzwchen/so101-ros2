@@ -107,6 +107,7 @@ class SO101ROS2Bridge(Node, ABC):
 
         self.last_positions = None
         self.last_time = self.get_clock().now()
+        self._last_feedback_monotonic = time.monotonic()
 
         # Start alive
         self._alive_thread.start()
@@ -238,14 +239,16 @@ class SO101ROS2Bridge(Node, ABC):
             # Store a copy for the next velocity calculation
             self.last_positions = list(self._positions)  # or self._positions[:]
             self.last_time = current_time
+            self._last_feedback_monotonic = time.monotonic()
 
         except Exception as e:
             self.get_logger().error(f'Failed to publish joint states: {e}')
 
     def _alive(self):
         """
-        Watchdog thread running at a fixed rate. Monitors rclpy.ok() and ROS time.
-        Triggers shutdown if ROS crashes or time stops progressing.
+        Monitor successful feedback with a monotonic clock.
+        Request executor shutdown; its finally block disconnects the serial port
+        after callbacks finish, rather than racing an active read here.
         """
         interval = self._watchdog_interval
         next_tick = time.monotonic()
@@ -256,18 +259,14 @@ class SO101ROS2Bridge(Node, ABC):
                 self.get_logger().error(
                     'ROS shutdown detected (rclpy.ok() == False). Triggering shutdown.'
                 )
-                self.shutdown_hook()
                 rclpy.try_shutdown()
                 break
 
-            # Check time progress
-            now = self.get_clock().now()
-            elapsed = (now - self.last_time).nanoseconds / 1e9
+            elapsed = time.monotonic() - self._last_feedback_monotonic
             if elapsed > self._timeout:
                 self.get_logger().error(
-                    f'ROS time not updating for {elapsed:.1f}s — triggering shutdown.'
+                    f'No successful joint feedback for {elapsed:.1f}s — requesting shutdown.'
                 )
-                self.shutdown_hook()
                 rclpy.try_shutdown()
                 break
 

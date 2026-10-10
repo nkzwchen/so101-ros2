@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -160,7 +161,7 @@ def parse_cameras_config(
     return cams
 
 
-def build_node_for_camera(spec: CameraSpec) -> Node:
+def build_node_for_camera(spec: CameraSpec, capture_epoch_shift_us: Optional[int] = None) -> Node:
     pkg, exe = TYPE_REGISTRY[spec.camera_type]
 
     # Common override: ensure camera_name matches the camera "name" from the list
@@ -173,6 +174,8 @@ def build_node_for_camera(spec: CameraSpec) -> Node:
     # For usb_cam you might also want to use a frame_id matching the camera name:
     if spec.camera_type == 'usb_camera':
         overrides.setdefault('frame_id', spec.name)
+        if capture_epoch_shift_us is not None:
+            overrides['capture_epoch_shift_us'] = capture_epoch_shift_us
 
         # ★ usb_cam 不认软链，必须在 launch 阶段解析成字面 /dev/videoN 再注入。
         #   参数合并规则：parameters=[yaml, overrides] 后者优先，所以这里能覆盖 yaml。
@@ -221,6 +224,8 @@ def build_node_for_camera(spec: CameraSpec) -> Node:
 
 def generate_launch_description():
     camera_specs = parse_cameras_config()
+    # One mapping for the entire camera group, sampled before staggered starts.
+    capture_epoch_shift_us = (time.time_ns() - time.monotonic_ns()) // 1000
 
     # ★★ 相机节点必须**错开启动**，不能同时起（2026-09 实测）★★
     #
@@ -244,7 +249,7 @@ def generate_launch_description():
     actions = []
     for idx, spec in enumerate(camera_specs):
         delay = idx * CAMERA_START_STAGGER_SEC
-        node = build_node_for_camera(spec)
+        node = build_node_for_camera(spec, capture_epoch_shift_us)
         if delay > 0:
             print(f'[camera.launch] {spec.name}: 延后 {delay:.0f}s 启动（错开 USB/IP 抢占）')
             actions.append(TimerAction(period=delay, actions=[node]))

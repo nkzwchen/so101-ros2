@@ -1,6 +1,8 @@
 /**:
   ros__parameters:
     framerate: 30.0
+    publish_rate: 30.0
+    publish_max_age_ms: 100.0
     io_method: "mmap"
     pixel_format: "mjpeg2rgb"
     image_width: 424
