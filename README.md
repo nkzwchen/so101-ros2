@@ -1,5 +1,7 @@
 # SO101 ROS2：相机与机器人描述
 
+本仓库负责 ROS2 相机启动与机器人描述，SO101 人工奖励训练见 [HIL-SERL 项目分支](https://github.com/nkzwchen/hil-serl-so101/tree/docs/so101-project-evidence-20261113)，六维抓取采集与 π0.5 性能实验见 [OpenPI 项目分支](https://github.com/nkzwchen/openpi/tree/docs/so101-project-evidence-20261113)。两路项目的动作/图像契约不同，不能直接混用数据。
+
 配套训练仓库：`git@github.com:nkzwchen/hil-serl-so101.git`。两仓库使用开发分支 `feat/so101-human-reward-3d`；部署记录各自 commit。
 
 当前录制/actor 使用 LeRobot 原生串口控制，仅相机依赖 ROS2。不要在录制时同时启动机器人串口桥或 ros2_control，否则争用两臂串口。旧桥仍保留供单独调试。
